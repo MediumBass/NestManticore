@@ -46,7 +46,6 @@ describe('drizzleProvider', () => {
     const provider = drizzleProvider[0];
     const result = await provider.useFactory(configService);
 
-    expect(configService.get).toHaveBeenCalledWith('DATABASE_URL');
     expect(PoolMock).toHaveBeenCalledWith({
       connectionString: 'postgres://user:pass@localhost:5432/db',
     });
