@@ -5,7 +5,7 @@
 ## Description
 
 Simple JWT Authorization Nest app.
-Refresh tokens are stored in Redis, Users are store in Postgres.
+Refresh tokens are stored in Redis, Users are stored in Postgres.
 Databases are dockerized, all enviroment variables stored in .env.
 
 ## Compile and run the project
@@ -17,7 +17,7 @@ Databases are dockerized, all enviroment variables stored in .env.
 $ npm install
 
 # up databases
-$ docker_compose up
+$ docker-compose up
 
 # push schemas
 $ npx drizzle-kit push
@@ -33,7 +33,7 @@ $ npm run start
    2. Press "Run in Postman"
    3. Set enviroment to Manticore
    4. Run all endpoints
-   5. Make sure that auth/login sents {{token}} = access_token 
+   5. Make sure that auth/login sets {{token}} = access_token 
     
 ## Run tests
 
