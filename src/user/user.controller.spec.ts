@@ -63,7 +63,11 @@ describe('UserController', () => {
         },
       };
 
-      const decoded: DecodedToken = { sub: 'user@example.com', iat:5000, exp: 100000 };
+      const decoded: DecodedToken = {
+        sub: 'user@example.com',
+        iat: 5000,
+        exp: 100000,
+      };
       const expectedUser: UserNoPassword = {
         id: 1,
         email: 'user@example.com',
@@ -76,20 +80,26 @@ describe('UserController', () => {
 
       const result = await controller.showUserInformation(mockRequest);
       expect(jwtService.decode).toHaveBeenCalledWith('mock.jwt.token');
-      expect(userService.getFullUserData).toHaveBeenCalledWith('user@example.com');
+      expect(userService.getFullUserData).toHaveBeenCalledWith(
+        'user@example.com',
+      );
       expect(result).toEqual(expectedUser);
     });
 
     it('should throw UnauthorizedException if no auth header', () => {
       const mockRequest: any = { headers: {} };
 
-      expect(() => controller.showUserInformation(mockRequest)).toThrow(UnauthorizedException);
+      expect(() => controller.showUserInformation(mockRequest)).toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException if no auth header', () => {
       const mockRequest: any = { headers: {} };
 
-      expect(() => controller.showUserInformation(mockRequest)).toThrow(UnauthorizedException);
+      expect(() => controller.showUserInformation(mockRequest)).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

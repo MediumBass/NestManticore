@@ -1,6 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserService } from './user.service';
-import { ConflictException, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { DrizzleAsyncProvider } from '../database/drizzle.provider';
 import { CreateUserDto } from './user.dto';
 import { CreateSessionDto } from '../auth/auth.dto';
@@ -57,7 +60,9 @@ describe('UserService', () => {
       dbMock.query.users.findFirst.mockResolvedValue(undefined);
       process.env.SALT_ROUNDS = 'not-a-number';
 
-      await expect(service.register(dto)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.register(dto)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should create a user and return id/email', async () => {
@@ -77,7 +82,9 @@ describe('UserService', () => {
   describe('getFullUserData', () => {
     it('should throw ConflictException if user not found', async () => {
       dbMock.query.users.findFirst.mockResolvedValue(undefined);
-      await expect(service.getFullUserData('notfound@example.com')).rejects.toThrow(ConflictException);
+      await expect(
+        service.getFullUserData('notfound@example.com'),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should return user without password', async () => {

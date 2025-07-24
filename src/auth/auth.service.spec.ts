@@ -42,17 +42,29 @@ describe('AuthService', () => {
       const fakeRefreshToken = 'refresh-token';
 
       jwtService.signAsync
-          .mockResolvedValueOnce(fakeAccessToken)
-          .mockResolvedValueOnce(fakeRefreshToken);
+        .mockResolvedValueOnce(fakeAccessToken)
+        .mockResolvedValueOnce(fakeRefreshToken);
       redisService.setRefreshToken.mockResolvedValue(undefined);
 
       const result = await service.signIn(email);
 
       expect(jwtService.signAsync).toHaveBeenCalledTimes(2);
-      expect(jwtService.signAsync).toHaveBeenCalledWith({ sub: email }, { expiresIn: '1m' });
-      expect(jwtService.signAsync).toHaveBeenCalledWith({ sub: email }, { expiresIn: '1h' });
-      expect(redisService.setRefreshToken).toHaveBeenCalledWith(email, fakeRefreshToken);
-      expect(result).toEqual({ access_token: fakeAccessToken, refresh_token: fakeRefreshToken });
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        { sub: email },
+        { expiresIn: '1m' },
+      );
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        { sub: email },
+        { expiresIn: '1h' },
+      );
+      expect(redisService.setRefreshToken).toHaveBeenCalledWith(
+        email,
+        fakeRefreshToken,
+      );
+      expect(result).toEqual({
+        access_token: fakeAccessToken,
+        refresh_token: fakeRefreshToken,
+      });
     });
   });
 
@@ -64,11 +76,15 @@ describe('AuthService', () => {
       jwtService.decode.mockReturnValue(decodedToken);
       redisService.getRefreshToken.mockResolvedValue(null);
 
-      await expect(service.refreshAccess(cookieToken)).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshAccess(cookieToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
 
       // test mismatch
       redisService.getRefreshToken.mockResolvedValue('different-token');
-      await expect(service.refreshAccess(cookieToken)).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshAccess(cookieToken)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should return new access token if refresh token valid', async () => {
@@ -83,8 +99,13 @@ describe('AuthService', () => {
       const result = await service.refreshAccess(cookieToken);
 
       expect(jwtService.decode).toHaveBeenCalledWith(cookieToken);
-      expect(redisService.getRefreshToken).toHaveBeenCalledWith(decodedToken.sub);
-      expect(jwtService.signAsync).toHaveBeenCalledWith({ sub: decodedToken.sub }, { expiresIn: '1m' });
+      expect(redisService.getRefreshToken).toHaveBeenCalledWith(
+        decodedToken.sub,
+      );
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        { sub: decodedToken.sub },
+        { expiresIn: '1m' },
+      );
       expect(result).toBe(newAccessToken);
     });
   });

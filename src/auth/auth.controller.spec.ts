@@ -6,7 +6,7 @@ import { CreateSessionDto } from './auth.dto';
 import { BadRequestException } from '@nestjs/common';
 import { Response } from 'express';
 import { Request as ExpressRequest } from 'express';
-import {User} from "../types";
+import { User } from '../types';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -44,7 +44,9 @@ describe('AuthController', () => {
       const dto: CreateSessionDto = { email: 'test@test.com', password: '123' };
       const res: Partial<Response> = { cookie: jest.fn() };
 
-      await expect(controller.login(dto, res as Response)).rejects.toThrow(BadRequestException);
+      await expect(controller.login(dto, res as Response)).rejects.toThrow(
+        BadRequestException,
+      );
       expect(userService.validateUser).toHaveBeenCalledWith(dto);
       expect(res.cookie).not.toHaveBeenCalled();
     });
@@ -53,7 +55,10 @@ describe('AuthController', () => {
       const dto: CreateSessionDto = { email: 'test@test.com', password: '123' };
       const tokens = { access_token: 'access', refresh_token: 'refresh' };
 
-      userService.validateUser.mockResolvedValue({email: dto.email, password: dto.password} as User);
+      userService.validateUser.mockResolvedValue({
+        email: dto.email,
+        password: dto.password,
+      } as User);
       authService.signIn.mockResolvedValue(tokens);
 
       const cookieMock = jest.fn();
@@ -64,14 +69,14 @@ describe('AuthController', () => {
       expect(userService.validateUser).toHaveBeenCalledWith(dto);
       expect(authService.signIn).toHaveBeenCalledWith(dto.email);
       expect(cookieMock).toHaveBeenCalledWith(
-          'refresh_token',
-          tokens.refresh_token,
-          expect.objectContaining({
-            httpOnly: true,
-            secure: expect.any(Boolean),
-            sameSite: 'strict',
-            maxAge: 60 * 60 * 1000,
-          }),
+        'refresh_token',
+        tokens.refresh_token,
+        expect.objectContaining({
+          httpOnly: true,
+          secure: expect.any(Boolean),
+          sameSite: 'strict',
+          maxAge: 60 * 60 * 1000,
+        }),
       );
       expect(result).toEqual({ access_token: tokens.access_token });
     });
@@ -82,7 +87,9 @@ describe('AuthController', () => {
       interface RequestWithCookies extends ExpressRequest {
         cookies: { [key: string]: string };
       }
-      const req: Partial<RequestWithCookies> = { cookies: { refresh_token: 'refreshToken' } };
+      const req: Partial<RequestWithCookies> = {
+        cookies: { refresh_token: 'refreshToken' },
+      };
       const accessToken = 'newAccessToken';
 
       authService.refreshAccess.mockResolvedValue(accessToken);
