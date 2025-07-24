@@ -16,7 +16,6 @@ export const drizzleProvider = [
       });
       await pool.query('SELECT 1'); // throws if connection fails
 
-      console.log('✅ PostgreSQL connection established');
       return drizzle(pool, { schema }) as NodePgDatabase<typeof schema>;
     },
   },

@@ -3,21 +3,13 @@ import { Redis } from 'ioredis';
 
 @Injectable()
 export class RedisService {
-    constructor(@Inject('REDIS_CLIENT') private readonly redisClient: Redis) {}
+  constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) {}
 
-    async set(key: string, value: string, expiry?: number): Promise<void> {
-        if (expiry) {
-            await this.redisClient.setex(key, expiry, value);
-        } else {
-            await this.redisClient.set(key, value);
-        }
-    }
+  async setRefreshToken(userId: string, token: string, ttlSeconds = 60 * 60) {
+    await this.redis.set(`refresh:${userId}`, token, 'EX', ttlSeconds);
+  }
 
-    async get(key: string): Promise<string | null> {
-        return this.redisClient.get(key);
-    }
-
-    async del(key: string): Promise<void> {
-        await this.redisClient.del(key);
-    }
+  async getRefreshToken(userId: string): Promise<string | null> {
+    return this.redis.get(`refresh:${userId}`);
+  }
 }

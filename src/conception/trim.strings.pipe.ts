@@ -7,7 +7,7 @@ import {
 
 @Injectable()
 export class TrimPipe implements PipeTransform {
-  private isObj(obj: any): boolean {
+  private isObj(obj: unknown): boolean {
     return typeof obj === 'object' && obj !== null;
   }
 

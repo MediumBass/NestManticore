@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
-import { DatabaseModule } from '../database/database.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RedisModule } from '../redis/redis.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
-    ConfigModule, // обязательно для useFactory
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -17,8 +17,8 @@ import { RedisModule } from '../redis/redis.module';
         signOptions: { expiresIn: '60s' },
       }),
     }),
-    DatabaseModule,
-    RedisModule
+    UserModule,
+    RedisModule,
   ],
   providers: [AuthService],
   controllers: [AuthController],
