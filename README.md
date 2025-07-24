@@ -8,18 +8,14 @@ Simple JWT Authorization Nest app.
 Refresh tokens are stored in Redis, Users are store in Postgres.
 Databases are dockerized, all enviroment variables stored in .env.
 
-## Project setup
-
-```bash
-# install dependencies
-$ npm install
-```
-
 ## Compile and run the project
 
 1) Run project
    
 ```bash
+# install dependencies
+$ npm install
+
 # up databases
 $ docker_compose up
 
