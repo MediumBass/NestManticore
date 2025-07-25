@@ -30,7 +30,7 @@ export class UserController {
   @UseGuards(AuthGuard)
   @Get('')
   showUserInformation(@Req() req: Request): Promise<UserNoPassword> {
-    if (typeof req.headers['authorization'] !== 'string')
+    if (typeof req.headers['authorization'] !== 'string'||!req.headers['authorization'])
       throw new UnauthorizedException('Invalid Authorization header');
     const token: string = req.headers['authorization']?.split(' ')[1];
     const decodedToken: DecodedToken = this.jwtService.decode(token);
