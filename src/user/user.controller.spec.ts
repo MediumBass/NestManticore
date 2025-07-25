@@ -1,15 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication } from '@nestjs/common';
+import * as request from 'supertest';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { JwtService } from '@nestjs/jwt';
-import { UnauthorizedException } from '@nestjs/common';
-import { UserNoPassword, DecodedToken } from '../types';
+import { AuthGuard } from '../conception/auth.guard';
 
-describe('UserController', () => {
-  let controller: UserController;
-  let userService: jest.Mocked<UserService>;
-  let jwtService: jest.Mocked<JwtService>;
-
+describe('UserController (integration)', () => {
+  let app: INestApplication;
   const mockUserService = {
     register: jest.fn(),
     getFullUserData: jest.fn(),
@@ -19,87 +17,74 @@ describe('UserController', () => {
     decode: jest.fn(),
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+  // Custom AuthGuard mock that just allows requests to pass through
+  class MockAuthGuard {
+    canActivate(context) {
+      const req = context.switchToHttp().getRequest();
+      req.headers['authorization'] = 'Bearer mocked_token'; // Inject fake token
+      return true;
+    }
+  }
+
+  beforeAll(async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [UserController],
       providers: [
         { provide: UserService, useValue: mockUserService },
         { provide: JwtService, useValue: mockJwtService },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useClass(MockAuthGuard)
+      .compile();
 
-    controller = module.get<UserController>(UserController);
-    userService = module.get(UserService);
-    jwtService = module.get(JwtService);
+    app = moduleRef.createNestApplication();
+    await app.init();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
+  afterAll(async () => {
+    await app.close();
   });
 
-  describe('createUser', () => {
-    it('should call userService.register and return result', async () => {
-      const dto = {
-        email: 'test@example.com',
-        password: 'pass123',
-        name: 'Test',
-        personalInfo: 'AAAAA',
-      };
+  describe('POST /user', () => {
+    it('should create a user', async () => {
+      const dto = { email: 'test@example.com', password: '123456' };
+      const createdUser = [{ id: 1, email: dto.email }];
+      mockUserService.register.mockResolvedValue(createdUser);
 
-      const expectedResult = [{ id: 1, email: 'test@example.com' }];
-      userService.register.mockResolvedValue(expectedResult);
+      const response = await request(app.getHttpServer())
+        .post('/user')
+        .send(dto)
+        .expect(201);
 
-      const result = await controller.createUser(dto);
-      expect(result).toEqual(expectedResult);
-      expect(userService.register).toHaveBeenCalledWith(dto);
+      expect(response.body).toEqual(createdUser);
+      expect(mockUserService.register).toHaveBeenCalledWith(dto);
     });
   });
 
-  describe('showUserInformation', () => {
-    it('should return user data if valid token is provided', async () => {
-      const mockRequest: any = {
-        headers: {
-          authorization: 'Bearer mock.jwt.token',
-        },
-      };
+  describe('GET /user', () => {
+    it('should return 401 if no Authorization header', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/user')
+        .expect(401);
 
-      const decoded: DecodedToken = {
-        sub: 'user@example.com',
-        iat: 5000,
-        exp: 100000,
-      };
-      const expectedUser: UserNoPassword = {
-        id: 1,
-        email: 'user@example.com',
-        name: 'Test User',
-        personalInfo: 'AAAAA',
-      };
-
-      jwtService.decode.mockReturnValue(decoded);
-      userService.getFullUserData.mockResolvedValue(expectedUser);
-
-      const result = await controller.showUserInformation(mockRequest);
-      expect(jwtService.decode).toHaveBeenCalledWith('mock.jwt.token');
-      expect(userService.getFullUserData).toHaveBeenCalledWith(
-        'user@example.com',
-      );
-      expect(result).toEqual(expectedUser);
+      expect(response.body.message).toBe('Invalid Authorization header');
     });
+    it('should return user info from token', async () => {
+      const decoded = { sub: 42 };
+      const userData = { id: 42, email: 'test@example.com' };
 
-    it('should throw UnauthorizedException if no auth header', () => {
-      const mockRequest: any = { headers: {} };
+      mockJwtService.decode.mockReturnValue(decoded);
+      mockUserService.getFullUserData.mockResolvedValue(userData);
 
-      expect(() => controller.showUserInformation(mockRequest)).toThrow(
-        UnauthorizedException,
-      );
-    });
+      const response = await request(app.getHttpServer())
+        .get('/user')
+        .set('Authorization', 'Bearer mocked_token')
+        .expect(200);
 
-    it('should throw UnauthorizedException if no auth header', () => {
-      const mockRequest: any = { headers: {} };
-
-      expect(() => controller.showUserInformation(mockRequest)).toThrow(
-        UnauthorizedException,
-      );
+      expect(response.body).toEqual(userData);
+      expect(mockJwtService.decode).toHaveBeenCalledWith('mocked_token');
+      expect(mockUserService.getFullUserData).toHaveBeenCalledWith(42);
     });
   });
 });

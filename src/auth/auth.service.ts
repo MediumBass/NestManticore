@@ -27,12 +27,11 @@ export class AuthService {
 
   async refreshAccess(cookieToken: string) {
     const decodedToken: DecodedToken = this.jwtService.decode(cookieToken);
+    if (!decodedToken || !decodedToken.sub) throw new UnauthorizedException();
     const redisToken: string | null = await this.redisService.getRefreshToken(
       decodedToken.sub,
     );
-    if (!redisToken || redisToken !== cookieToken) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    if (!redisToken || redisToken !== cookieToken) throw new UnauthorizedException();
     const payload = { sub: decodedToken.sub };
     return this.jwtService.signAsync(payload, { expiresIn: '1m' });
   }

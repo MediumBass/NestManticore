@@ -48,7 +48,6 @@ describe('TrimPipe', () => {
   });
 
   it('should throw BadRequestException if input is not an object or type is not "body"', () => {
-
     expect(() =>
       pipe.transform('string', {
         type: 'body',
@@ -56,7 +55,6 @@ describe('TrimPipe', () => {
         data: undefined,
       }),
     ).toThrow(BadRequestException);
-
 
     expect(() =>
       pipe.transform(

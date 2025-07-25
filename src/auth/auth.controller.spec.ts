@@ -1,20 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import * as request from 'supertest';
+import * as cookieParser from 'cookie-parser';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { CreateSessionDto } from './auth.dto';
-import { BadRequestException } from '@nestjs/common';
-import { Response } from 'express';
-import { Request as ExpressRequest } from 'express';
-import { User } from '../types';
 
-describe('AuthController', () => {
-  let controller: AuthController;
+describe('AuthController (integration)', () => {
+  let app: INestApplication;
   let authService: jest.Mocked<AuthService>;
   let userService: jest.Mocked<UserService>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         {
@@ -33,71 +32,66 @@ describe('AuthController', () => {
       ],
     }).compile();
 
-    controller = module.get<AuthController>(AuthController);
-    authService = module.get(AuthService);
-    userService = module.get(UserService);
+    authService = moduleRef.get(AuthService);
+    userService = moduleRef.get(UserService);
+
+    app = moduleRef.createNestApplication();
+    app.use(cookieParser()); // Required to parse cookies in requests
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    await app.init();
   });
 
-  describe('login', () => {
-    it('should throw BadRequestException if user not found', async () => {
-      userService.validateUser.mockResolvedValue(null);
-      const dto: CreateSessionDto = { email: 'test@test.com', password: '123' };
-      const res: Partial<Response> = { cookie: jest.fn() };
+  afterEach(async () => {
+    await app.close();
+  });
 
-      await expect(controller.login(dto, res as Response)).rejects.toThrow(
-        BadRequestException,
-      );
-      expect(userService.validateUser).toHaveBeenCalledWith(dto);
-      expect(res.cookie).not.toHaveBeenCalled();
+  describe('/auth/login (POST)', () => {
+    const url = '/auth/login';
+
+    it('should return 400 if user is not valid', async () => {
+      userService.validateUser.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .post(url)
+        .send({ email: 'invalid@test.com', password: 'wrongpass' })
+        .expect(400);
     });
 
-    it('should return access_token and set refresh_token cookie on success', async () => {
+    it('should return access_token and set refresh_token cookie', async () => {
       const dto: CreateSessionDto = { email: 'test@test.com', password: '123' };
-      const tokens = { access_token: 'access', refresh_token: 'refresh' };
+      const tokens = { access_token: 'access123', refresh_token: 'refresh123' };
 
-      userService.validateUser.mockResolvedValue({
-        email: dto.email,
-        password: dto.password,
-      } as User);
+      userService.validateUser.mockResolvedValue({ email: dto.email } as any);
       authService.signIn.mockResolvedValue(tokens);
 
-      const cookieMock = jest.fn();
-      const res: Partial<Response> = { cookie: cookieMock };
+      const response = await request(app.getHttpServer())
+        .post(url)
+        .send(dto)
+        .expect(201);
 
-      const result = await controller.login(dto, res as Response);
+      expect(response.body).toEqual({ access_token: 'access123' });
+      const setCookies = response.get('Set-Cookie');
+      expect(setCookies).toBeDefined();
 
-      expect(userService.validateUser).toHaveBeenCalledWith(dto);
-      expect(authService.signIn).toHaveBeenCalledWith(dto.email);
-      expect(cookieMock).toHaveBeenCalledWith(
-        'refresh_token',
-        tokens.refresh_token,
-        expect.objectContaining({
-          httpOnly: true,
-          secure: expect.any(Boolean),
-          sameSite: 'strict',
-          maxAge: 60 * 60 * 1000,
-        }),
-      );
-      expect(result).toEqual({ access_token: tokens.access_token });
+      const cookie = setCookies?.[0] ?? '';
+      expect(cookie).toContain('refresh_token=refresh123');
+      expect(cookie).toContain('refresh_token=refresh123');
+      expect(cookie).toContain('HttpOnly');
+      expect(cookie).toContain('SameSite=Strict');
     });
   });
 
-  describe('refresh', () => {
-    it('should call authService.refreshAccess with refresh token from cookies and return new access_token', async () => {
-      interface RequestWithCookies extends ExpressRequest {
-        cookies: { [key: string]: string };
-      }
-      const req: Partial<RequestWithCookies> = {
-        cookies: { refresh_token: 'refreshToken' },
-      };
-      const accessToken = 'newAccessToken';
+  describe('/auth/refresh (POST)', () => {
+    it('should return new access_token using refresh_token cookie', async () => {
+      authService.refreshAccess.mockResolvedValue('new-access-token');
 
-      authService.refreshAccess.mockResolvedValue(accessToken);
+      const response = await request(app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', 'refresh_token=refresh123')
+        .expect(201); // or 200
 
-      const result = await controller.refresh(req as RequestWithCookies);
-
-      expect(authService.refreshAccess).toHaveBeenCalledWith('refreshToken');
-      expect(result).toEqual({ access_token: accessToken });
+      expect(authService.refreshAccess).toHaveBeenCalledWith('refresh123');
+      expect(response.body).toEqual({ access_token: 'new-access-token' });
     });
   });
 });

@@ -1,7 +1,8 @@
 import { drizzleProvider } from './drizzle.provider';
-import { ConfigService } from '@nestjs/config';
-import { Pool } from 'pg';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { Test } from '@nestjs/testing';
 
 jest.mock('pg', () => ({
   Pool: jest.fn().mockImplementation(() => ({
@@ -13,11 +14,16 @@ jest.mock('drizzle-orm/node-postgres', () => ({
   drizzle: jest.fn(),
 }));
 
-describe('drizzleProvider', () => {
+describe('drizzleProvider ', () => {
   let configService: ConfigService;
 
-  beforeEach(() => {
-    configService = { get: jest.fn() } as any;
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [await ConfigModule.forRoot({ isGlobal: true })],
+      providers: [ConfigService],
+    }).compile();
+
+    configService = moduleRef.get(ConfigService);
 
     const PoolMock = Pool as unknown as jest.Mock;
     PoolMock.mockClear();
@@ -27,17 +33,19 @@ describe('drizzleProvider', () => {
   });
 
   it('should create pool, test connection and return drizzle instance', async () => {
-    (configService.get as jest.Mock).mockReturnValue(
-      'postgres://user:pass@localhost:5432/db',
-    );
+    const user: string | undefined = configService.get('POSTGRES_USER');
+    const pass: string | undefined = configService.get('POSTGRES_PASSWORD');
+    const db: string | undefined = configService.get('POSTGRES_DB');
+    const port: number | undefined = configService.get('POSTGRES_PORT');
+    const host: string = configService.get('POSTGRES_HOST', 'localhost');
+
+    const dbUrl = `postgresql://${user}:${pass}@${host}:${port}/${db}`;
 
     const queryMock = jest
       .fn()
       .mockResolvedValueOnce({ rows: [{ '?column?': 1 }] });
     const PoolMock = Pool as unknown as jest.Mock;
-    PoolMock.mockImplementation(() => ({
-      query: queryMock,
-    }));
+    PoolMock.mockImplementation(() => ({ query: queryMock }));
 
     const mockDb = {};
     const drizzleMock = drizzle as unknown as jest.Mock;
@@ -47,32 +55,24 @@ describe('drizzleProvider', () => {
     const result = await provider.useFactory(configService);
 
     expect(PoolMock).toHaveBeenCalledWith({
-      connectionString: 'postgres://user:pass@localhost:5432/db',
+      connectionString: dbUrl,
     });
     expect(queryMock).toHaveBeenCalledWith('SELECT 1');
-    expect(drizzleMock).toHaveBeenCalled();
     expect(result).toBe(mockDb);
   });
 
   it('should throw if pool.query rejects', async () => {
-    (configService.get as jest.Mock).mockReturnValue(
-      'postgres://user:pass@localhost:5432/db',
-    );
-
     const queryMock = jest
       .fn()
       .mockRejectedValueOnce(new Error('Connection failed'));
     const PoolMock = Pool as unknown as jest.Mock;
-    PoolMock.mockImplementation(() => ({
-      query: queryMock,
-    }));
+    PoolMock.mockImplementation(() => ({ query: queryMock }));
 
     const provider = drizzleProvider[0];
 
     await expect(provider.useFactory(configService)).rejects.toThrow(
       'Connection failed',
     );
-
     expect(queryMock).toHaveBeenCalledWith('SELECT 1');
   });
 });

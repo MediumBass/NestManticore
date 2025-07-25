@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import * as schema from './schema';
 import { ConfigService } from '@nestjs/config';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { InternalServerErrorException } from "@nestjs/common";
+import { InternalServerErrorException } from '@nestjs/common';
 export const DrizzleAsyncProvider = 'DrizzleAsyncProvider';
 export const drizzleProvider = [
   {
